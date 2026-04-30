@@ -1,4 +1,7 @@
-use crate::{config::AppConfig, r2::R2Client};
+use crate::{
+    config::{expand_path, AppConfig},
+    r2::R2Client,
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -51,9 +54,10 @@ pub struct CompareResult {
 }
 
 pub fn browse_local(config: &AppConfig, relative_path: &str) -> Result<LocalBrowseResult> {
-    let base = Path::new(&config.watch_path)
+    let expanded_watch_path = expand_path(&config.watch_path);
+    let base = expanded_watch_path
         .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(&config.watch_path));
+        .unwrap_or(expanded_watch_path);
     let target = if relative_path.is_empty() || relative_path == "/" {
         base.clone()
     } else {
@@ -123,12 +127,12 @@ pub fn browse_local(config: &AppConfig, relative_path: &str) -> Result<LocalBrow
 }
 
 pub fn local_tree(config: &AppConfig) -> Result<FileTreeNode> {
-    let base = Path::new(&config.watch_path);
+    let base = expand_path(&config.watch_path);
     let name = base
         .file_name()
         .map(|v| v.to_string_lossy().to_string())
         .unwrap_or_else(|| "watch_path".into());
-    build_tree(base, base, name)
+    build_tree(&base, &base, name)
 }
 
 fn build_tree(base: &Path, path: &Path, name: String) -> Result<FileTreeNode> {
@@ -170,10 +174,10 @@ fn build_tree(base: &Path, path: &Path, name: String) -> Result<FileTreeNode> {
 }
 
 pub fn search_local(config: &AppConfig, query: &str, limit: usize) -> Result<Vec<LocalFileInfo>> {
-    let base = Path::new(&config.watch_path);
+    let base = expand_path(&config.watch_path);
     let q = query.to_lowercase();
     let mut out = Vec::new();
-    for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
+    for entry in WalkDir::new(&base).into_iter().filter_map(Result::ok) {
         if out.len() >= limit {
             break;
         }
@@ -187,7 +191,7 @@ pub fn search_local(config: &AppConfig, query: &str, limit: usize) -> Result<Vec
             Err(_) => continue,
         };
         let rel = path
-            .strip_prefix(base)
+            .strip_prefix(&base)
             .unwrap_or(path)
             .to_string_lossy()
             .replace(std::path::MAIN_SEPARATOR, "/");
@@ -204,14 +208,14 @@ pub fn search_local(config: &AppConfig, query: &str, limit: usize) -> Result<Vec
 }
 
 pub async fn compare_local_and_r2(config: &AppConfig, r2: &R2Client) -> Result<CompareResult> {
-    let base = Path::new(&config.watch_path);
+    let base = expand_path(&config.watch_path);
     let mut local = HashMap::new();
-    for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
+    for entry in WalkDir::new(&base).into_iter().filter_map(Result::ok) {
         if entry.file_type().is_file() {
             let meta = entry.metadata()?;
             let key = entry
                 .path()
-                .strip_prefix(base)
+                .strip_prefix(&base)
                 .unwrap_or(entry.path())
                 .to_string_lossy()
                 .replace(std::path::MAIN_SEPARATOR, "/");
@@ -372,9 +376,10 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
 }
 
 fn safe_join(config: &AppConfig, relative: &str) -> Result<PathBuf> {
-    let base = Path::new(&config.watch_path)
+    let expanded_watch_path = expand_path(&config.watch_path);
+    let base = expanded_watch_path
         .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(&config.watch_path));
+        .unwrap_or(expanded_watch_path);
     let target = if relative.is_empty() || relative == "/" {
         base.clone()
     } else {

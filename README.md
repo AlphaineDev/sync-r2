@@ -45,6 +45,8 @@ endpoint = "${R2_ENDPOINT}"
 bucket_name = "${R2_BUCKET_NAME}"
 ```
 
+`watch_path` supports absolute paths, `~/...`, `$HOME/...`, and `${HOME}/...`.
+
 Start the TUI:
 
 ```bash

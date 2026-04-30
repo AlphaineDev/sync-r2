@@ -263,6 +263,21 @@ pub fn expand_env(input: &str) -> String {
     out
 }
 
+pub fn expand_path(input: &str) -> PathBuf {
+    let expanded = expand_env(input);
+    if expanded == "~" {
+        return env::var("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(expanded));
+    }
+    if let Some(rest) = expanded.strip_prefix("~/") {
+        if let Ok(home) = env::var("HOME") {
+            return PathBuf::from(home).join(rest);
+        }
+    }
+    PathBuf::from(expanded)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,4 +288,14 @@ mod tests {
         assert_eq!(expand_env("${SYNCR2_TEST_ENV}-$SYNCR2_TEST_ENV"), "ok-ok");
     }
 
+    #[test]
+    fn expands_home_path() {
+        env::set_var("SYNCR2_TEST_HOME", "/tmp/syncr2-home");
+        env::set_var("HOME", "/tmp/syncr2-home");
+        assert_eq!(expand_path("~/DATA"), PathBuf::from("/tmp/syncr2-home/DATA"));
+        assert_eq!(
+            expand_path("${SYNCR2_TEST_HOME}/DATA"),
+            PathBuf::from("/tmp/syncr2-home/DATA")
+        );
+    }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    config::AppConfig,
+    config::{expand_path, AppConfig},
     db::Database,
     events::EventHub,
     r2::{R2Client, R2Object},
@@ -88,7 +88,7 @@ impl SyncEngine {
         }
 
         let config = self.config.read().await.clone();
-        let watch_path = PathBuf::from(&config.watch_path);
+        let watch_path = expand_path(&config.watch_path);
         fs::create_dir_all(&watch_path)
             .await
             .with_context(|| format!("create watch path {}", watch_path.display()))?;
@@ -481,9 +481,10 @@ pub async fn sha256_file(path: &Path) -> Result<String> {
 }
 
 pub fn r2_key(config: &AppConfig, local_path: &Path) -> Result<String> {
-    let base = Path::new(&config.watch_path)
+    let expanded_watch_path = expand_path(&config.watch_path);
+    let base = expanded_watch_path
         .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(&config.watch_path));
+        .unwrap_or(expanded_watch_path);
     let local = local_path
         .canonicalize()
         .unwrap_or_else(|_| local_path.to_path_buf());
@@ -530,7 +531,7 @@ fn pattern_matches(pattern: &str, value: &str) -> bool {
 
 pub fn scan_existing_files(config: &AppConfig) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    for entry in WalkDir::new(&config.watch_path)
+    for entry in WalkDir::new(expand_path(&config.watch_path))
         .into_iter()
         .filter_map(Result::ok)
     {

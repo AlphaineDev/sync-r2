@@ -236,7 +236,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
                                 tokio::spawn(async move {
                                     if let Ok(r2) = crate::r2::R2Client::new(&cfg.r2).await {
                                         let file_name = path_clone.split('/').filter(|p| !p.is_empty()).last().unwrap_or(&path_clone);
-                                        let dest_path = std::path::Path::new(&crate::config::expand_env(&watch_path)).join(file_name);
+                                        let dest_path = crate::config::expand_path(&watch_path).join(file_name);
                                         if let Ok(_) = r2.download_file(&path_clone, &dest_path).await {
                                             events_clone.emit("file_created", serde_json::json!({"path": dest_path.display().to_string()}), Some("File safely downloaded from Cloudflare R2".into()));
                                         }
@@ -306,8 +306,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
                                     
                                     let mut num_downloaded = 0;
                                     let watch_path = cfg.watch_path.clone();
-                                    let expanded_watch_path = crate::config::expand_env(&watch_path);
-                                    let local_path_base = std::path::Path::new(&expanded_watch_path);
+                                    let local_path_base = crate::config::expand_path(&watch_path);
                                     for cfile in cloud {
                                         if !cfile.key.ends_with("/") {
                                             let name = cfile.key.split('/').filter(|p| !p.is_empty()).last().unwrap_or(&cfile.key).to_string();
@@ -572,7 +571,7 @@ fn render_dashboard(
         ]),
         Line::from(vec![
             Span::styled(" Watch path: ", Style::default().fg(Color::Gray)),
-            Span::raw(crate::config::expand_env(&config.watch_path)),
+            Span::raw(crate::config::expand_path(&config.watch_path).display().to_string()),
         ]),
         Line::from(vec![
             Span::styled(" Target R2 Bucket: ", Style::default().fg(Color::Gray)),
@@ -626,7 +625,7 @@ fn render_config(
     config_input_mode: bool,
     input_buffer: &str,
 ) {
-    let watch_path_val = if selected_config == 2 && config_input_mode { format!("{}█", input_buffer) } else { crate::config::expand_env(&config.watch_path) };
+    let watch_path_val = if selected_config == 2 && config_input_mode { format!("{}█", input_buffer) } else { crate::config::expand_path(&config.watch_path).display().to_string() };
     let endpoint_val = if selected_config == 3 && config_input_mode { format!("{}█", input_buffer) } else { crate::config::expand_env(&config.r2.endpoint) };
     let bucket_val = if selected_config == 4 && config_input_mode { format!("{}█", input_buffer) } else { crate::config::expand_env(&config.r2.bucket_name) };
 
