@@ -1,0 +1,9 @@
+pub mod cli;
+pub mod config;
+pub mod core;
+pub mod db;
+pub mod events;
+pub mod files;
+pub mod r2;
+pub mod state;
+pub mod tui;

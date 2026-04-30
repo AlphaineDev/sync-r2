@@ -1,0 +1,32 @@
+# SyncR2 Rust runtime configuration.
+# Secrets can stay in .env and be referenced here as ${VAR_NAME}.
+
+watch_path = "/home/quant/projectD/syncR2Source"
+
+[r2]
+access_key_id = "${R2_ACCESS_KEY_ID}"
+secret_access_key = "${R2_SECRET_ACCESS_KEY}"
+endpoint = "${R2_ENDPOINT}"
+bucket_name = "${R2_BUCKET_NAME}"
+
+[capacity]
+max_size_bytes = 10240
+
+[watcher]
+exclude_patterns = ["*.tmp", "*.swp", ".git", "__pycache__", ".DS_Store", "node_modules"]
+include_patterns = ["*"]
+
+[concurrency]
+max_uploads = 10
+batch_size = 50
+batch_interval_ms = 100
+
+[tui]
+refresh_interval_ms = 1000
+event_log_limit = 200
+
+[logging]
+level = "info"
+file = "logs/sync.log"
+max_size_mb = 100
+backup_count = 5

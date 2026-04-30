@@ -1,0 +1,22 @@
+# Rust build artifacts
+/target/
+
+# Runtime data
+/data/
+/logs/
+
+# Local environment and secrets
+.env
+
+# SyncR2 local artifacts and backups
+syncr2.db
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.sqlite
+*.sqlite3
+
+# Editor/system files
+.DS_Store
+Thumbs.db

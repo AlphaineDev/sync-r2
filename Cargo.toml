@@ -1,0 +1,33 @@
+[package]
+name = "syncr2"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+aws-config = "1"
+aws-credential-types = "1"
+aws-sdk-s3 = "1"
+aws-smithy-types = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.28"
+dotenvy = "0.15"
+glob = "0.3"
+notify = "6"
+ratatui = "0.29"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+sha2 = "0.10"
+thiserror = "1"
+tokio = { version = "1", features = ["full"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3"
