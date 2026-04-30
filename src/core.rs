@@ -42,7 +42,7 @@ struct EngineInner {
     task: Option<JoinHandle<()>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct SyncStatus {
     pub is_running: bool,
     pub is_paused: bool,

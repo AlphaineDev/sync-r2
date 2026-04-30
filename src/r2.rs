@@ -240,4 +240,19 @@ impl R2Client {
             .with_context(|| format!("read {}", path.display()))?;
         self.upload_bytes(key, bytes).await
     }
+
+    pub async fn download_file(&self, key: &str, dest_path: &Path) -> Result<()> {
+        let resp = self
+            .client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .send()
+            .await
+            .with_context(|| format!("get object {key}"))?;
+            
+        let body_bytes = resp.body.collect().await.context("read body")?.into_bytes();
+        fs::write(dest_path, body_bytes).await.context("write local file")?;
+        Ok(())
+    }
 }
