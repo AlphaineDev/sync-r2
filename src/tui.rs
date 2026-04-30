@@ -102,6 +102,17 @@ fn parent_prefix(prefix: &str) -> String {
     }
 }
 
+fn parent_local_path(path: &str) -> String {
+    let trimmed = path.trim_matches('/');
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    match trimmed.rsplit_once('/') {
+        Some((parent, _)) => parent.to_string(),
+        None => String::new(),
+    }
+}
+
 async fn run_loop<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     state: AppState,
@@ -110,6 +121,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
     let mut selected_tab = 0usize;
     let mut selected_file_local = 0usize;
     let mut selected_file_r2 = 0usize;
+    let mut current_local_path = String::new();
     let mut current_r2_prefix = String::new();
     let mut file_browser_focus = 0usize; // 0 = local, 1 = r2
     
@@ -183,14 +195,26 @@ async fn run_loop<B: ratatui::backend::Backend>(
         let logs = event_log.lock().expect("event log lock").clone();
         
         // Sync lists accurately
-        let local_files = crate::files::browse_local(&config, "")
+        let local_files = crate::files::browse_local(&config, &current_local_path)
             .map(|v| v.items)
             .unwrap_or_default();
+        let mut local_entries = Vec::new();
+        if !current_local_path.is_empty() {
+            local_entries.push(crate::files::LocalFileInfo {
+                name: "..".into(),
+                path: parent_local_path(&current_local_path),
+                is_directory: true,
+                size: 0,
+                modified_time: None,
+                absolute_path: String::new(),
+            });
+        }
+        local_entries.extend(local_files);
         let cloud_files = r2_files.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let cloud_entries = cloud_browser_entries(&cloud_files, &current_r2_prefix);
             
-        if selected_file_local >= local_files.len() && !local_files.is_empty() {
-            selected_file_local = local_files.len() - 1;
+        if selected_file_local >= local_entries.len() && !local_entries.is_empty() {
+            selected_file_local = local_entries.len() - 1;
         }
         if selected_file_r2 >= cloud_entries.len() && !cloud_entries.is_empty() {
             selected_file_r2 = cloud_entries.len() - 1;
@@ -238,7 +262,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
 
             match selected_tab {
                 0 => render_dashboard(frame, content_area, status.as_ref(), capacity.as_ref(), &config),
-                1 => render_files(frame, content_area, &local_files, &cloud_entries, &current_r2_prefix, selected_file_local, selected_file_r2, file_browser_focus, confirm_delete.as_deref(), confirm_download.as_deref(), confirm_sync_l2c, confirm_sync_c2l),
+                1 => render_files(frame, content_area, &local_entries, &current_local_path, &cloud_entries, &current_r2_prefix, selected_file_local, selected_file_r2, file_browser_focus, confirm_delete.as_deref(), confirm_download.as_deref(), confirm_sync_l2c, confirm_sync_c2l),
                 2 => render_config(frame, content_area, &config, selected_config, config_input_mode, &input_buffer),
                 3 => render_capacity(frame, content_area, capacity.as_ref()),
                 _ => render_logs(frame, content_area, &logs),
@@ -246,7 +270,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
             
             let footer_text = match selected_tab {
                 0 => " [Tab] Next Menu | [s] Start | [x] Stop | [p] Pause | [r] Resume | [q] Quit ",
-                1 => " [Tab] Select Mode | [←/→] Panels | [Enter] Open R2 Dir | [u] D/Load | [d] Delete | [[] Mirror L→C | []] Mirror C→L ",
+                1 => " [Tab] Select Mode | [←/→] Panels | [Enter] Open Dir / .. Back | [u] D/Load | [d] Delete | [[] Mirror L→C | []] Mirror C→L ",
                 2 => " [Tab] Next Menu | [↑/↓] Select Config | [←/→] Adjust Value | [Enter] Text | [q] Quit ",
                 3 => " [Tab] Next Menu | [c] Calibrate Capacity | [q] Quit ",
                 _ => " [Tab] Next Menu | [q] Quit ",
@@ -332,7 +356,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
                             let cfg = state.config.read().await.clone();
                             let events_clone = state.events.clone();
                             let cloud = cloud_files.clone();
-                            let local = local_files.clone();
+                            let local = local_entries.clone();
                             let state_ref = state.engine.clone();
                             tokio::spawn(async move {
                                 events_clone.emit("sync_started", serde_json::json!({}), Some("Initializing Hard Mirror: Local -> Cloud".into()));
@@ -366,7 +390,7 @@ async fn run_loop<B: ratatui::backend::Backend>(
                             let cfg = state.config.read().await.clone();
                             let events_clone = state.events.clone();
                             let cloud = cloud_files.clone();
-                            let local = local_files.clone();
+                            let local = local_entries.clone();
                             tokio::spawn(async move {
                                 events_clone.emit("sync_started", serde_json::json!({}), Some("Initializing Hard Mirror: Cloud -> Local".into()));
                                 if let Ok(r2) = crate::r2::R2Client::new(&cfg.r2).await {
@@ -486,7 +510,14 @@ async fn run_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Enter => {
-                        if selected_tab == 1 && file_browser_focus == 1 {
+                        if selected_tab == 1 && file_browser_focus == 0 {
+                            if let Some(item) = local_entries.get(selected_file_local) {
+                                if item.is_directory {
+                                    current_local_path = item.path.clone();
+                                    selected_file_local = 0;
+                                }
+                            }
+                        } else if selected_tab == 1 && file_browser_focus == 1 {
                             if let Some(item) = cloud_entries.get(selected_file_r2) {
                                 match item {
                                     CloudBrowserEntry::Parent => {
@@ -510,8 +541,8 @@ async fn run_loop<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Down => {
                         if selected_tab == 1 {
-                            if file_browser_focus == 0 && !local_files.is_empty() {
-                                selected_file_local = (selected_file_local + 1).min(local_files.len() - 1);
+                            if file_browser_focus == 0 && !local_entries.is_empty() {
+                                selected_file_local = (selected_file_local + 1).min(local_entries.len() - 1);
                             } else if file_browser_focus == 1 && !cloud_entries.is_empty() {
                                 selected_file_r2 = (selected_file_r2 + 1).min(cloud_entries.len() - 1);
                             }
@@ -532,8 +563,10 @@ async fn run_loop<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Char('d') => {
                         if selected_tab == 1 && file_browser_focus == 0 {
-                            if let Some(item) = local_files.get(selected_file_local) {
-                                confirm_delete = Some(item.path.clone());
+                            if let Some(item) = local_entries.get(selected_file_local) {
+                                if item.name != ".." {
+                                    confirm_delete = Some(item.path.clone());
+                                }
                             }
                         }
                         if selected_tab == 1 && file_browser_focus == 1 {
@@ -848,6 +881,7 @@ fn render_files(
     frame: &mut ratatui::Frame,
     area: ratatui::layout::Rect,
     local_files: &[crate::files::LocalFileInfo],
+    current_local_path: &str,
     cloud_entries: &[CloudBrowserEntry],
     current_r2_prefix: &str,
     selected_local: usize,
@@ -940,7 +974,13 @@ fn render_files(
 
     // Render Local Files Block
     let local_rows: Vec<Row> = local_files.iter().enumerate().map(|(i, item)| {
-        let (icon, color) = if item.is_directory { ("[D]", WARNING) } else { ("[F]", Color::White) };
+        let (icon, color) = if item.name == ".." {
+            ("↩️", WARNING)
+        } else if item.is_directory {
+            ("📂", WARNING)
+        } else {
+            ("📄", Color::White)
+        };
         let size_str = if item.is_directory { "-".to_string() } else { format_size(item.size) };
         
         let row_style = if i == selected_local && focus == 0 {
@@ -958,14 +998,19 @@ fn render_files(
     }).collect();
 
     let title_style = if focus == 0 { Style::default().fg(PRIMARY) } else { Style::default().fg(BORDER_COLOR) };
+    let local_path = if current_local_path.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{current_local_path}")
+    };
     let local_block = Block::default()
-        .title(Span::styled(format!(" 💻 Local File System ({} items) ", local_files.len()), title_style.add_modifier(Modifier::BOLD)))
+        .title(Span::styled(format!(" 💻 Local File System {local_path} ({} items) ", local_files.len()), title_style.add_modifier(Modifier::BOLD)))
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(title_style);
 
     let local_table = Table::new(local_rows, [
-        Constraint::Length(6),
+        Constraint::Length(8),
         Constraint::Min(10),
         Constraint::Length(10),
         Constraint::Length(20)
@@ -979,14 +1024,14 @@ fn render_files(
     let r2_rows: Vec<Row> = cloud_entries.iter().enumerate().map(|(i, item)| {
         let (icon, name, size_str, date_str, color) = match item {
             CloudBrowserEntry::Parent => (
-                "[..]",
+                "↩️",
                 "..".to_string(),
                 "-".to_string(),
                 "-".to_string(),
                 WARNING,
             ),
             CloudBrowserEntry::Directory { name, .. } => (
-                "[D]",
+                "📂",
                 format!("{name}/"),
                 "-".to_string(),
                 "-".to_string(),
@@ -1000,7 +1045,7 @@ fn render_files(
                     .replace("T", " ")
                     .replace("Z", "");
                 (
-                    "[F]",
+                    "☁️",
                     file.key
                         .split('/')
                         .filter(|p| !p.is_empty())
@@ -1039,13 +1084,13 @@ fn render_files(
         format!("/{current_r2_prefix}")
     };
     let r2_block = Block::default()
-        .title(Span::styled(format!(" Cloudflare R2 Storage {r2_path} ({} items) ", cloud_entries.len()), r2_title_style.add_modifier(Modifier::BOLD)))
+        .title(Span::styled(format!(" ☁️  Cloudflare R2 Storage {r2_path} ({} items) ", cloud_entries.len()), r2_title_style.add_modifier(Modifier::BOLD)))
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(r2_title_style);
 
     let r2_table = Table::new(r2_rows, [
-        Constraint::Length(6),
+        Constraint::Length(8),
         Constraint::Min(10),
         Constraint::Length(10),
         Constraint::Length(20)
