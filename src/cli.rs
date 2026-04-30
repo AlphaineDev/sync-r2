@@ -19,7 +19,7 @@ use std::{
     about = "Cloudflare R2 file synchronization service"
 )]
 pub struct Cli {
-    #[arg(long, global = true, default_value = "syncr2.toml")]
+    #[arg(long, global = true, default_value = "config/default.toml")]
     pub config: PathBuf,
     #[command(subcommand)]
     pub command: Option<Command>,
@@ -45,7 +45,7 @@ pub enum ConfigCommand {
     Migrate {
         #[arg(long, default_value = "config.yaml")]
         from: PathBuf,
-        #[arg(long, default_value = "syncr2.toml")]
+        #[arg(long, default_value = "config/default.toml")]
         to: PathBuf,
     },
     Show,
@@ -74,7 +74,7 @@ pub async fn run_cli(cli: Cli) -> Result<()> {
 
     let loaded = load_config(Some(&cli.config)).or_else(|_| load_config(None))?;
     if loaded.loaded_from_yaml {
-        eprintln!("Loaded legacy config.yaml. Run `syncr2 config migrate` to create syncr2.toml.");
+        eprintln!("Loaded legacy config.yaml. Run `syncr2 config migrate` to create config/default.toml.");
     }
     let db = Database::open_default()?;
     let events = EventHub::new(512);

@@ -173,7 +173,7 @@ pub fn load_config(path_override: Option<&Path>) -> Result<LoadedConfig> {
     let _ = dotenvy::from_path(".env");
     let path = path_override
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("syncr2.toml"));
+        .unwrap_or_else(|| PathBuf::from("config/default.toml"));
     if path.exists() {
         let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
         let config: AppConfig = toml::from_str(&raw)
@@ -208,7 +208,7 @@ pub fn load_config(path_override: Option<&Path>) -> Result<LoadedConfig> {
 }
 
 pub fn save_toml(path: &Path, config: &AppConfig) -> Result<()> {
-    let raw = toml::to_string_pretty(config).context("serialize syncr2.toml")?;
+    let raw = toml::to_string_pretty(config).context("serialize config/default.toml")?;
     fs::write(path, raw).with_context(|| format!("write {}", path.display()))
 }
 

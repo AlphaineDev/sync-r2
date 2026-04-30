@@ -13,7 +13,7 @@ bucket_name = "${R2_BUCKET_NAME}"
 max_size_bytes = 10240
 
 [watcher]
-exclude_patterns = ["*.tmp", "*.swp", ".git", "__pycache__", ".DS_Store", "node_modules"]
+exclude_patterns = ["*.tmp", "*.swp", ".git", "__pycache__", ".DS_Store", "node_modules", "*.tmp.*"]
 include_patterns = ["*"]
 
 [concurrency]

@@ -20,7 +20,7 @@ Terminal-first Cloudflare R2 sync tool written in Rust.
 - A Cloudflare R2 bucket.
 - R2 API credentials with access to the target bucket.
 
-No Cloudflare CLI login is required. The app reads credentials from `.env` and `syncr2.toml`.
+No Cloudflare CLI login is required. The app reads credentials from `.env` and `config/default.toml`.
 
 ## Quick Start
 
@@ -33,7 +33,7 @@ R2_ENDPOINT=https://your_account_id.r2.cloudflarestorage.com
 R2_BUCKET_NAME=your_bucket_name
 ```
 
-Then edit `syncr2.toml`:
+Then edit `config/default.toml`:
 
 ```toml
 watch_path = "/path/to/local/folder"
@@ -98,7 +98,7 @@ cargo run -- config show
 Print public config values without secret fields.
 
 ```bash
-cargo run -- config migrate --from config.yaml --to syncr2.toml
+cargo run -- config migrate --from config.yaml --to config/default.toml
 ```
 
 Migrate a legacy YAML config into the current TOML format.
@@ -141,7 +141,7 @@ Config view keys:
 
 ## Configuration
 
-`syncr2.toml` is the main runtime config.
+`config/default.toml` is the main runtime config.
 
 Important sections:
 
@@ -153,7 +153,7 @@ Important sections:
 - `[tui]`: refresh interval and event log size.
 - `[logging]`: log file and rotation settings.
 
-Secrets should stay in `.env`. Keep placeholders like `${R2_ACCESS_KEY_ID}` in `syncr2.toml` so the checked-in config does not contain credentials.
+Secrets should stay in `.env`. Keep placeholders like `${R2_ACCESS_KEY_ID}` in `config/default.toml` so the checked-in config does not contain credentials.
 
 ## Runtime Files
 

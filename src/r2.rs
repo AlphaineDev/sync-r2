@@ -45,7 +45,7 @@ impl R2Client {
         let bucket = expand_env(&config.bucket_name);
         if access_key_id.contains("${") || secret_access_key.contains("${") {
             return Err(anyhow!(
-                "R2 credentials are unresolved; check .env or syncr2.toml"
+                "R2 credentials are unresolved; check .env or config/default.toml"
             ));
         }
         let credentials = Credentials::new(access_key_id, secret_access_key, None, None, "syncr2");
