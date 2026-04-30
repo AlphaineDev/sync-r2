@@ -7,7 +7,10 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf};
+use std::{
+    fs::OpenOptions,
+    path::{Path, PathBuf},
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -142,9 +145,25 @@ async fn run_sync_command(state: AppState, command: SyncCommand) -> Result<()> {
 
 fn init_tracing() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "syncr2=info".into());
+    let _ = std::fs::create_dir_all("logs");
+    let writer = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("logs/syncr2-runtime.log")
+        .ok();
     let _ = tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_target(false)
+        .with_writer(move || {
+            let output: Box<dyn std::io::Write + Send> = match writer
+                .as_ref()
+                .and_then(|file| file.try_clone().ok())
+            {
+                Some(file) => Box::new(file),
+                None => Box::new(std::io::sink()),
+            };
+            output
+        })
         .try_init();
 }
 
