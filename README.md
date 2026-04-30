@@ -1,5 +1,7 @@
 # syncr2
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 Terminal-first Cloudflare R2 sync tool written in Rust.
 
 `syncr2` watches a local directory, uploads files to a Cloudflare R2 bucket, tracks sync state in a local SQLite database, and provides an interactive TUI for daily operation. This project no longer ships or starts a frontend HTTP/API server.
@@ -126,6 +128,7 @@ Useful keys:
 
 File browser keys:
 
+- `Enter`: open a selected directory, or enter `..` to go back.
 - `Left` / `Right`: switch panels.
 - `u`: download or upload depending on the selected panel.
 - `d`: delete selected item.
