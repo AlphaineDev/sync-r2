@@ -354,11 +354,61 @@ async fn run_loop<B: ratatui::backend::Backend>(
                     KeyCode::BackTab => {
                         selected_tab = selected_tab.checked_sub(1).unwrap_or(tabs.len() - 1)
                     }
-                    KeyCode::Char('s') => if selected_tab == 0 { let _ = state.engine.start().await; },
-                    KeyCode::Char('x') => if selected_tab == 0 { let _ = state.engine.stop().await; },
-                    KeyCode::Char('p') => if selected_tab == 0 { let _ = state.engine.pause().await; },
-                    KeyCode::Char('r') => if selected_tab == 0 { let _ = state.engine.resume().await; },
-                    KeyCode::Char('c') => if selected_tab == 3 { let _ = state.engine.calibrate_capacity().await; },
+                    KeyCode::Char('s') => {
+                        if selected_tab == 0 {
+                            if let Err(err) = state.engine.start().await {
+                                state.events.emit(
+                                    "sync_start_failed",
+                                    serde_json::json!({"error": err.to_string()}),
+                                    Some(format!("Sync start failed: {err}")),
+                                );
+                            }
+                        }
+                    }
+                    KeyCode::Char('x') => {
+                        if selected_tab == 0 {
+                            if let Err(err) = state.engine.stop().await {
+                                state.events.emit(
+                                    "sync_stop_failed",
+                                    serde_json::json!({"error": err.to_string()}),
+                                    Some(format!("Sync stop failed: {err}")),
+                                );
+                            }
+                        }
+                    }
+                    KeyCode::Char('p') => {
+                        if selected_tab == 0 {
+                            if let Err(err) = state.engine.pause().await {
+                                state.events.emit(
+                                    "sync_pause_failed",
+                                    serde_json::json!({"error": err.to_string()}),
+                                    Some(format!("Sync pause failed: {err}")),
+                                );
+                            }
+                        }
+                    }
+                    KeyCode::Char('r') => {
+                        if selected_tab == 0 {
+                            if let Err(err) = state.engine.resume().await {
+                                state.events.emit(
+                                    "sync_resume_failed",
+                                    serde_json::json!({"error": err.to_string()}),
+                                    Some(format!("Sync resume failed: {err}")),
+                                );
+                            }
+                        }
+                    }
+                    KeyCode::Char('c') => {
+                        if selected_tab == 3 {
+                            if let Err(err) = state.engine.calibrate_capacity().await {
+                                state.events.emit(
+                                    "capacity_calibration_failed",
+                                    serde_json::json!({"error": err.to_string()}),
+                                    Some(format!("Capacity calibration failed: {err}")),
+                                );
+                            }
+                        }
+                    }
                     KeyCode::Enter => {
                         // Activate input edit mode for string paths
                         if selected_tab == 2 && (2..=4).contains(&selected_config) {
@@ -548,9 +598,8 @@ fn render_dashboard(
         
     let s = status.cloned().unwrap_or_default();
     
-    let is_r2_active = s.is_running && !s.is_paused;
-    let r2_conn_str = if is_r2_active { "🔗 Connected" } else { "🔌 Disconnected" };
-    let r2_conn_color = if is_r2_active { SUCCESS } else { DANGER };
+    let engine_state_str = if s.is_running { "● Active" } else { "○ Inactive" };
+    let engine_state_color = if s.is_running { SUCCESS } else { DANGER };
     
     let stat_lines = vec![
         Line::from(vec![
@@ -562,8 +611,8 @@ fn render_dashboard(
             }
         ]),
         Line::from(vec![
-            Span::styled(" R2 Connection: ", Style::default().fg(Color::Gray)),
-            Span::styled(r2_conn_str, Style::default().fg(r2_conn_color).add_modifier(Modifier::BOLD))
+            Span::styled(" Sync Engine: ", Style::default().fg(Color::Gray)),
+            Span::styled(engine_state_str, Style::default().fg(engine_state_color).add_modifier(Modifier::BOLD))
         ]),
         Line::from(vec![
             Span::styled(" Uptime: ", Style::default().fg(Color::Gray)),
